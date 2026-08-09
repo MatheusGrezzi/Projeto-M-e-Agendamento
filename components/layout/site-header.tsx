@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { logoutAction } from "@/app/actions";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { Button } from "@/components/ui/button";
 import { companyConfig } from "@/lib/config/company-config";
@@ -40,9 +41,16 @@ export async function SiteHeader() {
 
         <div className="flex items-center gap-2">
           {user ? (
-            <Button render={<Link href={accountHref} />} variant="ghost">
-              Minha conta
-            </Button>
+            <>
+              <Button render={<Link href={accountHref} />} variant="ghost">
+                Minha conta
+              </Button>
+              <form action={logoutAction}>
+                <Button type="submit" variant="ghost">
+                  Sair
+                </Button>
+              </form>
+            </>
           ) : (
             <Button render={<Link href="/login" />} variant="ghost">
               Entrar

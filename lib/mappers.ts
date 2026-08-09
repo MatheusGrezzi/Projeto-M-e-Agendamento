@@ -2,6 +2,7 @@ import type {
   Appointment,
   AppointmentStatus,
   BusinessHoursEntry,
+  ClientRecord,
   CompanySettings,
   Professional,
   ProfessionalTimeOff,
@@ -18,6 +19,9 @@ export interface ProfileRow {
   full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  cpf: string | null;
+  health_insurance: string | null;
+  allergies_notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,8 +33,29 @@ export function profileFromRow(row: ProfileRow): Profile {
     fullName: row.full_name,
     phone: row.phone,
     avatarUrl: row.avatar_url,
+    cpf: row.cpf,
+    healthInsurance: row.health_insurance,
+    allergiesNotes: row.allergies_notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+export interface ClientRecordRow {
+  id: string;
+  client_id: string;
+  author_id: string;
+  content: string;
+  created_at: string;
+}
+
+export function clientRecordFromRow(row: ClientRecordRow): ClientRecord {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    authorId: row.author_id,
+    content: row.content,
+    createdAt: row.created_at,
   };
 }
 

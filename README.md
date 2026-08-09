@@ -18,11 +18,12 @@ Não é um SaaS multi-tenant: é um **projeto-base** que se duplica e personaliz
 - Site institucional (início, serviços, sobre, contato)
 - Fluxo de agendamento público (serviço → profissional → horário → confirmação)
 - Login/cadastro de clientes + área do cliente (meus agendamentos, cancelar)
-- Painel administrativo: dashboard, agenda (com agendamento manual), gestão de serviços, gestão de profissionais (com horários de trabalho), configuração de horário de funcionamento
+- Painel administrativo: dashboard, agenda (com agendamento manual), gestão de serviços, gestão de profissionais (com horários de trabalho), gestão de clientes, configuração de horário de funcionamento
+- Módulo de clínica (odontológica/estética): dados clínicos do cliente (CPF, convênio, alergias) e prontuário — opcional, ver [CUSTOMIZATION.md § 6](CUSTOMIZATION.md#6-módulo-de-clínica-odontológica--estética)
 - Controle de acesso por papel (admin / atendente / cliente)
 - Identidade centralizada em [`lib/config/company-config.ts`](lib/config/company-config.ts) — nada de nome/telefone/cor espalhado pelo código
 
-O que fica para uma fase seguinte está documentado em [CUSTOMIZATION.md § 7](CUSTOMIZATION.md#7-limitações-conhecidas-do-mvp-fase-1).
+O que fica para uma fase seguinte está documentado em [CUSTOMIZATION.md § 8](CUSTOMIZATION.md#8-limitações-conhecidas-do-mvp-fase-1).
 
 ## Como rodar localmente
 

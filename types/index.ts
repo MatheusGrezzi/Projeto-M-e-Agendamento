@@ -6,8 +6,22 @@ export interface Profile {
   fullName: string | null;
   phone: string | null;
   avatarUrl: string | null;
+  // Clinic-oriented fields — optional, only populated/shown when relevant
+  // (a barbershop simply never fills these in).
+  cpf: string | null;
+  healthInsurance: string | null;
+  allergiesNotes: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A single entry in a client's running clinical history (prontuário) — staff-only. */
+export interface ClientRecord {
+  id: string;
+  clientId: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
 }
 
 export interface CompanySettings {
