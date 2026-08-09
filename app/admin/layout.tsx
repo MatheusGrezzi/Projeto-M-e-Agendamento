@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminSidebar role={profile.role} userEmail={user.email ?? null} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center gap-3 border-b border-border bg-card px-4 md:hidden">
-          <AdminMobileSidebar role={profile.role} />
+          <AdminMobileSidebar role={profile.role} userEmail={user.email ?? null} />
           <span className="text-sm font-semibold tracking-wide">Painel</span>
         </header>
         <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>

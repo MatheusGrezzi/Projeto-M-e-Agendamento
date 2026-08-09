@@ -118,7 +118,12 @@ export function BookingWizard({ services, isAuthenticated, initialServiceId }: {
         <CardContent>
           <Select value={serviceId} onValueChange={handleServiceChange}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecione um serviço" />
+              <SelectValue placeholder="Selecione um serviço">
+                {() => {
+                  const s = services.find((service) => service.id === serviceId);
+                  return s ? `${s.name} — ${formatDurationMinutes(s.durationMinutes)} — ${formatPriceCents(s.priceCents)}` : "Selecione um serviço";
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {services.map((service) => (
@@ -142,7 +147,9 @@ export function BookingWizard({ services, isAuthenticated, initialServiceId }: {
             ) : (
               <Select value={professionalId} onValueChange={handleProfessionalChange}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione um profissional" />
+                  <SelectValue placeholder="Selecione um profissional">
+                    {() => professionals.find((p) => p.id === professionalId)?.fullName ?? "Selecione um profissional"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {professionals.map((professional) => (
