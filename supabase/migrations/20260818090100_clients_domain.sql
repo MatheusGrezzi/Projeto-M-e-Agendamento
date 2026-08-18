@@ -8,25 +8,6 @@
 -- every client-scoped child table's RLS policy relies on.
 
 -- ============================================================
--- is_client_org_member(): security definer helper reused by every table
--- scoped through clients.id instead of organization_id directly.
--- ============================================================
-create or replace function is_client_org_member(p_client_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from clients c
-    join organization_members m on m.organization_id = c.organization_id
-    where c.id = p_client_id and m.user_id = auth.uid()
-  );
-$$;
-
--- ============================================================
 -- clients — the agency's clients (assistências técnicas)
 -- ============================================================
 create table if not exists clients (
@@ -71,6 +52,27 @@ drop trigger if exists clients_set_updated_at on clients;
 create trigger clients_set_updated_at
   before update on clients
   for each row execute function set_updated_at();
+
+-- ============================================================
+-- is_client_org_member(): security definer helper reused by every table
+-- scoped through clients.id instead of organization_id directly. Must come
+-- after `clients` is created — SQL-language functions are parsed against
+-- the catalog at CREATE FUNCTION time, unlike plpgsql.
+-- ============================================================
+create or replace function is_client_org_member(p_client_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from clients c
+    join organization_members m on m.organization_id = c.organization_id
+    where c.id = p_client_id and m.user_id = auth.uid()
+  );
+$$;
 
 -- ============================================================
 -- segments — fixed catalog (Refrigeração doméstica / Ar-condicionado /
