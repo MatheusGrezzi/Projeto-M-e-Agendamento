@@ -14,6 +14,28 @@
 -- `status` already covers the full campaign lifecycle (see briefing seção
 -- 32) so no alter table is needed in later fases — Fase 2 only reaches
 -- 'draft' and 'strategy_generated'.
+--
+-- Drop-and-recreate guard: an earlier draft of this same migration (without
+-- organization_id, generator_type, campaign_ads, campaign_conversions,
+-- campaign_landing_pages) may have already run against this database.
+-- `create table if not exists` would silently skip recreating it with the
+-- new shape, so drop the whole campaign domain first — nothing here has
+-- real production data yet.
+drop table if exists campaign_assets cascade;
+drop table if exists campaign_negatives cascade;
+drop table if exists campaign_keywords cascade;
+drop table if exists campaign_ads cascade;
+drop table if exists campaign_ad_groups cascade;
+drop table if exists campaign_versions cascade;
+drop table if exists campaign_landing_pages cascade;
+drop table if exists campaign_conversions cascade;
+drop table if exists campaign_locations cascade;
+drop table if exists campaign_services cascade;
+drop table if exists campaign_equipment cascade;
+drop table if exists campaigns cascade;
+drop function if exists is_ad_group_org_member(uuid);
+drop function if exists is_campaign_version_org_member(uuid);
+drop function if exists is_campaign_org_member(uuid);
 
 create table if not exists campaigns (
   id uuid primary key default gen_random_uuid(),
