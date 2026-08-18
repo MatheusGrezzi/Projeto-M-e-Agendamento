@@ -17,8 +17,8 @@ import type {
   Profile,
   Segment,
   ServiceType,
-  StrategyJson,
 } from "@/types";
+import type { CampaignStrategy } from "@/lib/schemas/campaign-strategy";
 
 export interface ClientRow {
   id: string;
@@ -307,7 +307,9 @@ export function clientConversionFromRow(row: ClientConversionRow): ClientConvers
 
 export interface CampaignRow {
   id: string;
+  organization_id: string;
   client_id: string;
+  created_by: string | null;
   name: string;
   segment_id: string;
   objective: Campaign["objective"];
@@ -321,7 +323,9 @@ export interface CampaignRow {
 export function campaignFromRow(row: CampaignRow): Campaign {
   return {
     id: row.id,
+    organizationId: row.organization_id,
     clientId: row.client_id,
+    createdBy: row.created_by,
     name: row.name,
     segmentId: row.segment_id,
     objective: row.objective,
@@ -362,10 +366,10 @@ export interface CampaignVersionRow {
   id: string;
   campaign_id: string;
   version_number: number;
-  strategy_json: StrategyJson;
-  warnings: string[];
-  reasoning_summary: string | null;
+  strategy_json: CampaignStrategy;
+  generator_type: CampaignVersion["generatorType"];
   generated_by: string;
+  generation_reason: string | null;
   created_at: string;
 }
 
@@ -375,9 +379,9 @@ export function campaignVersionFromRow(row: CampaignVersionRow): CampaignVersion
     campaignId: row.campaign_id,
     versionNumber: row.version_number,
     strategy: row.strategy_json,
-    warnings: row.warnings,
-    reasoningSummary: row.reasoning_summary,
+    generatorType: row.generator_type,
     generatedBy: row.generated_by,
+    generationReason: row.generation_reason,
     createdAt: row.created_at,
   };
 }

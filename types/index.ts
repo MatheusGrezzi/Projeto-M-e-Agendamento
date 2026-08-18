@@ -176,7 +176,9 @@ export type CampaignStatus =
 
 export interface Campaign {
   id: string;
+  organizationId: string;
   clientId: string;
+  createdBy: string | null;
   name: string;
   segmentId: string;
   objective: CampaignObjective;
@@ -199,59 +201,40 @@ export interface CampaignListItem {
   createdAt: string;
 }
 
-export type KeywordMatchType = "broad" | "phrase" | "exact";
-
-export interface StrategyKeyword {
-  keyword: string;
-  match_type: KeywordMatchType;
-}
-
-export interface StrategyAdGroup {
-  name: string;
-  service: string;
-  equipment: string;
-  landing_page: string | null;
-  keywords: StrategyKeyword[];
-  headlines: string[];
-  descriptions: string[];
-}
-
-/** The Estrategista agent's structured output — see briefing seção 19. */
-export interface StrategyJson {
-  campaign_name: string;
-  segment: string;
-  equipment: string[];
-  services: string[];
-  objective: CampaignObjective;
-  daily_budget: number;
-  locations: string[];
-  excluded_locations: string[];
-  conversion_actions: string[];
-  ad_groups: StrategyAdGroup[];
-  campaign_negatives: StrategyKeyword[];
-  assets: string[];
-  warnings: string[];
-  reasoning_summary: string;
-}
+export type GeneratorType = "ai" | "deterministic";
 
 export interface CampaignVersion {
   id: string;
   campaignId: string;
   versionNumber: number;
-  strategy: StrategyJson;
-  warnings: string[];
-  reasoningSummary: string | null;
+  strategy: import("@/lib/schemas/campaign-strategy").CampaignStrategy;
+  generatorType: GeneratorType;
   generatedBy: string;
+  generationReason: string | null;
   createdAt: string;
 }
 
+/** UI-facing shape of a campaign_ad_groups row, joined with its ads/keywords for display. */
 export interface CampaignAdGroupRow {
   id: string;
   name: string;
+  theme: string | null;
   landingPageUrl: string | null;
-  headlines: string[];
-  descriptions: string[];
-  keywords: StrategyKeyword[];
+  keywords: { text: string; matchType: "exact" | "phrase"; intent: string | null; reason: string | null }[];
+  ads: { headlines: string[]; descriptions: string[]; path1: string | null; path2: string | null }[];
+}
+
+export interface CampaignNegativeRow {
+  text: string;
+  matchType: "exact" | "phrase" | "broad";
+  category: string;
+  reason: string | null;
+}
+
+export interface CampaignAssetsRow {
+  sitelinks: string[];
+  callouts: string[];
+  structuredSnippets: string[];
 }
 
 export interface ActivityLogEntry {

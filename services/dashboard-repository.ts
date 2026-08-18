@@ -14,7 +14,7 @@ export interface DashboardStats {
 export async function getDashboardStats(supabase: SupabaseClient, organizationId: string): Promise<DashboardStats> {
   const [{ data: clientRows, error: clientsError }, { data: campaignRows, error: campaignsError }] = await Promise.all([
     supabase.from("clients").select("status").eq("organization_id", organizationId),
-    supabase.from("campaigns").select("status, clients!inner(organization_id)").eq("clients.organization_id", organizationId),
+    supabase.from("campaigns").select("status").eq("organization_id", organizationId),
   ]);
   if (clientsError) throw new Error(`Falha ao carregar estatísticas: ${clientsError.message}`);
   if (campaignsError) throw new Error(`Falha ao carregar estatísticas de campanhas: ${campaignsError.message}`);

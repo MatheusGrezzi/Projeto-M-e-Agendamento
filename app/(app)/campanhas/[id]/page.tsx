@@ -1,32 +1,65 @@
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle, Lightbulb, Lock, MapPin, MessageSquareText } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { RegenerateButton } from "./regenerate-button";
+import { VersionSelector } from "./version-selector";
+import { JsonToggle } from "./json-toggle";
 import { CampaignStatusBadge } from "@/components/shared/campaign-status-badge";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatCurrencyBRL } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { getCampaign, getCampaignAdGroups, getCampaignNegatives, getLatestCampaignVersion } from "@/services/campaigns-repository";
+import {
+  getCampaign,
+  getCampaignAdGroups,
+  getCampaignAssets,
+  getCampaignNegatives,
+  getCampaignVersion,
+  listCampaignVersions,
+} from "@/services/campaigns-repository";
 import { getClient } from "@/services/clients-repository";
-import type { KeywordMatchType } from "@/types";
 
 const OBJECTIVE_LABEL = { leads: "Leads", whatsapp: "WhatsApp", calls: "Ligações", forms: "Formulários", bookings: "Agendamentos" } as const;
 
-const MATCH_TYPE_LABEL: Record<KeywordMatchType, string> = { broad: "Ampla", phrase: "Frase", exact: "Exata" };
+const MATCH_TYPE_LABEL: Record<string, string> = { exact: "Exata", phrase: "Frase", broad: "Ampla" };
 
-export default async function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const NEGATIVE_CATEGORY_LABEL: Record<string, string> = {
+  parts: "Peças",
+  diy: "Faça você mesmo",
+  employment: "Emprego",
+  training: "Curso/treinamento",
+  manuals: "Manuais",
+  irrelevant_equipment: "Equipamento não atendido",
+  excluded_service: "Serviço não realizado",
+  excluded_location: "Região excluída",
+  other: "Outro",
+};
+
+export default async function CampaignDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ version?: string }>;
+}) {
   const { id } = await params;
+  const { version: versionParam } = await searchParams;
   const supabase = await createClient();
 
   const campaign = await getCampaign(supabase, id);
   if (!campaign) notFound();
 
-  const [client, version] = await Promise.all([getClient(supabase, campaign.clientId), getLatestCampaignVersion(supabase, id)]);
-  const [adGroups, negatives] = version
-    ? await Promise.all([getCampaignAdGroups(supabase, version.id), getCampaignNegatives(supabase, version.id)])
-    : [[], []];
+  const [client, versions] = await Promise.all([getClient(supabase, campaign.clientId), listCampaignVersions(supabase, id)]);
+
+  const selectedVersion = versionParam
+    ? (versions.find((v) => v.versionNumber === Number(versionParam)) ?? versions[0])
+    : versions[0];
+
+  const version = selectedVersion ? await getCampaignVersion(supabase, selectedVersion.id) : null;
+  const [adGroups, negatives, assets] = version
+    ? await Promise.all([getCampaignAdGroups(supabase, version.id), getCampaignNegatives(supabase, version.id), getCampaignAssets(supabase, version.id)])
+    : [[], [], { sitelinks: [], callouts: [], structuredSnippets: [] }];
 
   return (
     <div className="space-y-6">
@@ -44,54 +77,153 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             )}
             {" · "}
             {OBJECTIVE_LABEL[campaign.objective]} · {formatCurrencyBRL(campaign.dailyBudget)}/dia
-            {version && ` · versão ${version.versionNumber}`}
           </p>
         </div>
-        <RegenerateButton campaignId={id} />
+        <div className="flex items-center gap-2">
+          {version && <VersionSelector campaignId={id} versions={versions} currentVersionNumber={version.versionNumber} />}
+          <RegenerateButton campaignId={id} hasVersion={versions.length > 0} />
+        </div>
       </div>
 
       {!version ? (
         <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">Nenhuma estratégia gerada ainda.</CardContent>
+          <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-sm text-muted-foreground">
+            <p>Nenhuma estratégia gerada ainda.</p>
+            <p className="text-xs">Clique em &quot;Gerar estratégia&quot; para criar a primeira versão.</p>
+          </CardContent>
         </Card>
       ) : (
         <>
-          {version.warnings.length > 0 && (
+          {/* Resumo */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Resumo</CardTitle>
+              <CardDescription>Versão {version.versionNumber} · gerada por {version.generatedBy}</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-foreground">{version.strategy.strategy_summary}</CardContent>
+          </Card>
+
+          {version.generationReason && (
+            <p className="text-xs text-muted-foreground">
+              <MessageSquareText className="mr-1 inline size-3" />
+              Motivo da regeneração: {version.generationReason}
+            </p>
+          )}
+
+          {version.strategy.warnings.length > 0 && (
             <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
               <p className="flex items-center gap-2 text-sm font-medium text-destructive">
                 <AlertTriangle className="size-4" />
-                Alertas do Estrategista
+                Warnings
               </p>
               <ul className="ml-6 list-disc space-y-1 text-sm text-destructive/90">
-                {version.warnings.map((w, i) => (
+                {version.strategy.warnings.map((w, i) => (
                   <li key={i}>{w}</li>
                 ))}
               </ul>
             </div>
           )}
 
-          {version.reasoningSummary && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Resumo do raciocínio</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">{version.reasoningSummary}</CardContent>
-            </Card>
+          {version.strategy.assumptions.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
+              <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Lightbulb className="size-4" />
+                Assumptions (hipóteses do agente)
+              </p>
+              <ul className="ml-6 list-disc space-y-1 text-sm text-muted-foreground">
+                {version.strategy.assumptions.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </div>
           )}
 
+          {/* Configuração */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Configuração</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Objetivo</p>
+                <p className="text-foreground">{OBJECTIVE_LABEL[version.strategy.campaign.objective]}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Orçamento diário</p>
+                <p className="text-foreground">{formatCurrencyBRL(version.strategy.campaign.daily_budget)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Estratégia de lance</p>
+                <p className="text-foreground">{version.strategy.bidding.strategy}</p>
+                <p className="text-xs text-muted-foreground">{version.strategy.bidding.reason}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Idioma</p>
+                <p className="text-foreground">{version.strategy.campaign.language}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Localização */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <MapPin className="size-4" />
+                Localização
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {version.strategy.locations.included.map((l) => (
+                  <Badge key={l} variant="secondary">
+                    {l}
+                  </Badge>
+                ))}
+              </div>
+              {version.strategy.locations.excluded.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {version.strategy.locations.excluded.map((l) => (
+                    <Badge key={l} variant="destructive">
+                      Excluída: {l}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Conversões */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Conversões</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {version.strategy.conversions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma conversão utilizada nesta estratégia.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {version.strategy.conversions.map((c) => (
+                    <Badge key={c} variant="outline">
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Grupos de anúncios / Palavras-chave / Anúncios */}
           <div className="space-y-4">
             {adGroups.map((group) => (
               <Card key={group.id}>
                 <CardHeader className="flex-row items-start justify-between gap-4">
-                  <CardTitle className="text-sm">{group.name}</CardTitle>
+                  <div>
+                    <CardTitle className="text-sm">{group.name}</CardTitle>
+                    {group.theme && <CardDescription>{group.theme}</CardDescription>}
+                  </div>
                   {group.landingPageUrl ? (
-                    <a
-                      href={group.landingPageUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      Landing page <ExternalLink className="size-3" />
+                    <a href={group.landingPageUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                      Landing page
                     </a>
                   ) : (
                     <Badge variant="outline" className="text-xs">
@@ -104,49 +236,104 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                     <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">Palavras-chave</p>
                     <div className="flex flex-wrap gap-1.5">
                       {group.keywords.map((k, i) => (
-                        <Badge key={i} variant="secondary">
-                          {k.keyword} <span className="ml-1 text-muted-foreground">({MATCH_TYPE_LABEL[k.match_type]})</span>
+                        <Badge key={i} variant="secondary" title={k.reason ?? undefined}>
+                          {k.text} <span className="ml-1 text-muted-foreground">({MATCH_TYPE_LABEL[k.matchType]})</span>
                         </Badge>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">Títulos</p>
-                    <ul className="space-y-1 text-sm text-foreground">
-                      {group.headlines.map((h, i) => (
-                        <li key={i}>{h}</li>
+                    <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">Anúncios (RSA)</p>
+                    <div className="space-y-3">
+                      {group.ads.map((ad, i) => (
+                        <div key={i} className="rounded-lg border border-border p-3">
+                          <ul className="space-y-0.5 text-sm text-foreground">
+                            {ad.headlines.map((h, j) => (
+                              <li key={j}>{h}</li>
+                            ))}
+                          </ul>
+                          <ul className="mt-2 space-y-0.5 text-sm text-muted-foreground">
+                            {ad.descriptions.map((d, j) => (
+                              <li key={j}>{d}</li>
+                            ))}
+                          </ul>
+                          {(ad.path1 || ad.path2) && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              /{ad.path1}
+                              {ad.path2 ? `/${ad.path2}` : ""}
+                            </p>
+                          )}
+                        </div>
                       ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">Descrições</p>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {group.descriptions.map((d, i) => (
-                        <li key={i}>{d}</li>
-                      ))}
-                    </ul>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
 
+          {/* Negativas */}
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Palavras negativas</CardTitle>
+              <CardDescription>Específicas deste cliente — nunca uma lista universal.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1.5">
                 {negatives.map((n, i) => (
-                  <Badge key={i} variant="outline">
-                    {n.keyword}
+                  <Badge key={i} variant="outline" title={n.reason ?? undefined}>
+                    {n.text} <span className="ml-1 text-muted-foreground">({NEGATIVE_CATEGORY_LABEL[n.category] ?? n.category})</span>
                   </Badge>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          <p className="text-center text-xs text-muted-foreground">Auditoria e aprovação humana chegam na Fase 3.</p>
+          {/* Assets */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Assets</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Sitelinks</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {assets.sitelinks.map((s, i) => (
+                    <Badge key={i} variant="secondary">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Callouts</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {assets.callouts.map((s, i) => (
+                    <Badge key={i} variant="secondary">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1 text-xs text-muted-foreground">Structured snippets</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {assets.structuredSnippets.map((s, i) => (
+                    <Badge key={i} variant="secondary">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <JsonToggle json={version.strategy} />
+
+          <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/50 py-4 text-sm text-muted-foreground">
+            <Lock className="size-4" />
+            Auditoria disponível na Fase 3.
+          </div>
         </>
       )}
     </div>
