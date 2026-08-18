@@ -1,8 +1,10 @@
 import type { CampaignContext } from "./campaign-context";
-import type { AIProvider } from "./ai-provider";
+import type { AIGenerationResult, AIProvider } from "./ai-provider";
 import type { CampaignStrategy, StrategyKeyword, StrategyNegative } from "@/lib/schemas/campaign-strategy";
 import { RSA_LIMITS } from "@/lib/google-ads/limits";
 import type { ClientLandingPage } from "@/types";
+
+export const DETERMINISTIC_PROMPT_VERSION = "rule-based-v1";
 
 const BASELINE_NEGATIVES: { text: string; category: StrategyNegative["category"]; reason: string }[] = [
   { text: "curso", category: "training", reason: "Baixa intenção comercial — busca por capacitação, não por contratação de serviço." },
@@ -70,7 +72,8 @@ function buildAd(clientDisplayName: string, serviceName: string, equipmentName: 
 export const deterministicProvider: AIProvider = {
   name: "deterministic",
 
-  async generateStrategy(context: CampaignContext): Promise<unknown> {
+  async generateStrategy(context: CampaignContext): Promise<AIGenerationResult> {
+    const startedAt = Date.now();
     const clientDisplayName = context.client.tradeName || context.client.name;
     const cities = context.locations.map((l) => l.city);
     const warnings: string[] = [];
@@ -174,6 +177,14 @@ export const deterministicProvider: AIProvider = {
         `objetivo: ${context.objective}.`,
     };
 
-    return strategy;
+    return {
+      raw: strategy,
+      providerType: "deterministic",
+      model: "deterministic",
+      promptVersion: DETERMINISTIC_PROMPT_VERSION,
+      inputTokens: null,
+      outputTokens: null,
+      durationMs: Date.now() - startedAt,
+    };
   },
 };

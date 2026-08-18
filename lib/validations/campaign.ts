@@ -23,3 +23,13 @@ export const regenerateCampaignSchema = z.object({
     .optional()
     .transform((v) => (v ? v : null)),
 });
+
+export const approveCampaignSchema = z.object({
+  campaignVersionId: z.string().uuid(),
+  campaignAuditId: z.string().uuid(),
+  notes: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v : null)),
+});

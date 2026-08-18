@@ -1,14 +1,18 @@
-import { AlertTriangle, Lightbulb, Lock, MapPin, MessageSquareText } from "lucide-react";
+import { AlertTriangle, Lightbulb, MapPin, MessageSquareText } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { RegenerateButton } from "./regenerate-button";
 import { VersionSelector } from "./version-selector";
 import { JsonToggle } from "./json-toggle";
+import { AuditButton } from "./audit-button";
+import { AuditReportCard } from "./audit-report";
+import { ApproveButton } from "./approve-button";
 import { CampaignStatusBadge } from "@/components/shared/campaign-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { formatCurrencyBRL } from "@/lib/format";
+import { formatCurrencyBRL, formatDateTimeBr } from "@/lib/format";
+import { hasCriticalIssue } from "@/lib/schemas/campaign-audit";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCampaign,
@@ -18,6 +22,7 @@ import {
   getCampaignVersion,
   listCampaignVersions,
 } from "@/services/campaigns-repository";
+import { getLatestCampaignAudit, listCampaignApprovals } from "@/services/campaign-audits-repository";
 import { getClient } from "@/services/clients-repository";
 
 const OBJECTIVE_LABEL = { leads: "Leads", whatsapp: "WhatsApp", calls: "Ligações", forms: "Formulários", bookings: "Agendamentos" } as const;
@@ -57,9 +62,23 @@ export default async function CampaignDetailPage({
     : versions[0];
 
   const version = selectedVersion ? await getCampaignVersion(supabase, selectedVersion.id) : null;
-  const [adGroups, negatives, assets] = version
-    ? await Promise.all([getCampaignAdGroups(supabase, version.id), getCampaignNegatives(supabase, version.id), getCampaignAssets(supabase, version.id)])
-    : [[], [], { sitelinks: [], callouts: [], structuredSnippets: [] }];
+  const [adGroups, negatives, assets, audit, approvals] = version
+    ? await Promise.all([
+        getCampaignAdGroups(supabase, version.id),
+        getCampaignNegatives(supabase, version.id),
+        getCampaignAssets(supabase, version.id),
+        getLatestCampaignAudit(supabase, version.id),
+        listCampaignApprovals(supabase, id),
+      ])
+    : [[], [], { sitelinks: [], callouts: [], structuredSnippets: [] }, null, []];
+
+  const isLatestVersion = version !== null && versions[0]?.id === version.id;
+  const canApprove =
+    isLatestVersion &&
+    audit !== null &&
+    !hasCriticalIssue(audit.report.issues) &&
+    audit.status !== "rejected" &&
+    campaign.status === "awaiting_human_approval";
 
   return (
     <div className="space-y-6">
@@ -330,10 +349,48 @@ export default async function CampaignDetailPage({
 
           <JsonToggle json={version.strategy} />
 
-          <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-card/50 py-4 text-sm text-muted-foreground">
-            <Lock className="size-4" />
-            Auditoria disponível na Fase 3.
+          {/* Auditoria */}
+          <div className="space-y-4 border-t border-border pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Auditoria</h2>
+                <p className="text-xs text-muted-foreground">
+                  {isLatestVersion
+                    ? "Cada nova versão precisa de uma nova auditoria — a de uma versão anterior não vale para esta."
+                    : "Esta não é a versão mais recente — gere ou selecione a versão atual para auditar/aprovar."}
+                </p>
+              </div>
+              {isLatestVersion && <AuditButton campaignId={id} />}
+            </div>
+
+            {audit ? (
+              <AuditReportCard audit={audit} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Esta versão ainda não foi auditada.</p>
+            )}
+
+            {canApprove && audit && (
+              <div className="flex justify-end">
+                <ApproveButton campaignId={id} campaignVersionId={version.id} campaignAuditId={audit.id} />
+              </div>
+            )}
+
+            {approvals.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Histórico de aprovação</p>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {approvals.map((a) => (
+                    <li key={a.id}>
+                      Aprovada em {formatDateTimeBr(a.approvedAt)}
+                      {a.notes && ` — "${a.notes}"`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
+
+          <p className="text-center text-xs text-muted-foreground">Execução (Google Ads, Claude Chrome) e QA chegam em uma fase futura.</p>
         </>
       )}
     </div>

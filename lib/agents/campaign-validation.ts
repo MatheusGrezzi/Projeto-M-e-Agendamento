@@ -7,7 +7,7 @@ export interface ValidationResult {
 }
 
 /** True if this equipment+service combination is something the client explicitly does NOT do. */
-function isServiceExcluded(context: CampaignContext, equipmentId: string, serviceId: string): boolean {
+export function isServiceExcluded(context: CampaignContext, equipmentId: string, serviceId: string): boolean {
   if (context.excludedEquipment.some((e) => e.equipmentId === equipmentId)) return true;
   return context.excludedServices.some(
     (s) => (s.equipmentId === equipmentId || s.equipmentId === null) && (s.serviceId === serviceId || s.serviceId === null)
@@ -124,6 +124,18 @@ export function validateGeneratedStrategy(strategy: CampaignStrategy, context: C
   const allowedLocationNames = new Set(context.locations.map((l) => l.city));
   const excludedLocationNames = new Set(context.excludedLocations.map((l) => l.city));
   const excludedBrandNames = new Set(context.excludedBrands.map((b) => b.brandName.toLowerCase()));
+  const allowedLandingPageUrls = new Set([...context.availableLandingPages, ...context.selectedLandingPages].map((lp) => lp.url));
+  const allowedConversionNames = new Set(context.selectedConversions.map((c) => c.name));
+
+  // Free-text labels for exclusions (e.g. "Troca de borracha") aren't tied to
+  // any real equipment/service id, so they can only be caught by scanning the
+  // actual generated copy — not by the field-level checks below.
+  const forbiddenPhrases = [
+    ...context.excludedEquipment.map((e) => e.equipmentName ?? e.label),
+    ...context.excludedServices.map((s) => s.label ?? [s.equipmentName, s.serviceName].filter(Boolean).join(" ")),
+  ]
+    .filter((p): p is string => Boolean(p && p.trim()))
+    .map((p) => p.trim().toLowerCase());
 
   for (const group of strategy.ad_groups) {
     if (!allowedEquipmentNames.has(group.equipment)) {
@@ -131,6 +143,43 @@ export function validateGeneratedStrategy(strategy: CampaignStrategy, context: C
     }
     if (!allowedServiceNames.has(group.service)) {
       errors.push(`O grupo "${group.name}" usa o serviço "${group.service}", que não estava entre os selecionados.`);
+    }
+
+    // Re-resolve the group's equipment/service names back to ids (via the
+    // context's own selection lists) and re-check exclusion by id — catches
+    // a drifted context where the item is still "selected" but was also
+    // excluded after the fact, which the name-allowlist checks above miss.
+    const matchedService = context.selectedServices.find(
+      (s) => s.equipmentName === group.equipment && s.serviceName === group.service
+    );
+    if (matchedService && isServiceExcluded(context, matchedService.equipmentId, matchedService.serviceId)) {
+      errors.push(`O grupo "${group.name}" usa "${group.service} de ${group.equipment}", que é uma restrição deste cliente.`);
+    }
+    const matchedEquipment = context.selectedEquipment.find((e) => e.name === group.equipment);
+    if (matchedEquipment && context.excludedEquipment.some((e) => e.equipmentId === matchedEquipment.id)) {
+      errors.push(`O grupo "${group.name}" usa o equipamento "${group.equipment}", que é uma restrição deste cliente.`);
+    }
+
+    if (group.landing_page && !allowedLandingPageUrls.has(group.landing_page)) {
+      errors.push(`O grupo "${group.name}" usa a landing page "${group.landing_page}", que não existe no CampaignContext deste cliente.`);
+    }
+
+    const groupText = [
+      ...group.keywords.map((k) => k.text),
+      ...group.ads.flatMap((ad) => [...ad.headlines, ...ad.descriptions]),
+    ]
+      .join(" \n ")
+      .toLowerCase();
+    for (const phrase of forbiddenPhrases) {
+      if (groupText.includes(phrase)) {
+        errors.push(`O grupo "${group.name}" menciona "${phrase}", que é uma restrição deste cliente.`);
+      }
+    }
+  }
+
+  for (const conversion of strategy.conversions) {
+    if (!allowedConversionNames.has(conversion)) {
+      errors.push(`A estratégia usa a conversão "${conversion}", que não foi selecionada (ou não existe) para este cliente.`);
     }
   }
 

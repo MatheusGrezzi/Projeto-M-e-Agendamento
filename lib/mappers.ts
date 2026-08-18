@@ -19,6 +19,8 @@ import type {
   ServiceType,
 } from "@/types";
 import type { CampaignStrategy } from "@/lib/schemas/campaign-strategy";
+import type { AuditReport } from "@/lib/schemas/campaign-audit";
+import type { CampaignApproval, CampaignAudit } from "@/types";
 
 export interface ClientRow {
   id: string;
@@ -369,6 +371,10 @@ export interface CampaignVersionRow {
   strategy_json: CampaignStrategy;
   generator_type: CampaignVersion["generatorType"];
   generated_by: string;
+  prompt_version: string;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  duration_ms: number | null;
   generation_reason: string | null;
   created_at: string;
 }
@@ -381,8 +387,74 @@ export function campaignVersionFromRow(row: CampaignVersionRow): CampaignVersion
     strategy: row.strategy_json,
     generatorType: row.generator_type,
     generatedBy: row.generated_by,
+    promptVersion: row.prompt_version,
+    inputTokens: row.input_tokens,
+    outputTokens: row.output_tokens,
+    durationMs: row.duration_ms,
     generationReason: row.generation_reason,
     createdAt: row.created_at,
+  };
+}
+
+export interface CampaignAuditRow {
+  id: string;
+  organization_id: string;
+  client_id: string;
+  campaign_id: string;
+  campaign_version_id: string;
+  auditor_provider: CampaignAudit["auditorProvider"];
+  auditor_model: string;
+  prompt_version: string;
+  score: number;
+  status: CampaignAudit["status"];
+  report_json: AuditReport;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  duration_ms: number | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export function campaignAuditFromRow(row: CampaignAuditRow): CampaignAudit {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    clientId: row.client_id,
+    campaignId: row.campaign_id,
+    campaignVersionId: row.campaign_version_id,
+    auditorProvider: row.auditor_provider,
+    auditorModel: row.auditor_model,
+    promptVersion: row.prompt_version,
+    score: row.score,
+    status: row.status,
+    report: row.report_json,
+    inputTokens: row.input_tokens,
+    outputTokens: row.output_tokens,
+    durationMs: row.duration_ms,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+  };
+}
+
+export interface CampaignApprovalRow {
+  id: string;
+  campaign_id: string;
+  campaign_version_id: string;
+  campaign_audit_id: string;
+  approved_by: string | null;
+  approved_at: string;
+  notes: string | null;
+}
+
+export function campaignApprovalFromRow(row: CampaignApprovalRow): CampaignApproval {
+  return {
+    id: row.id,
+    campaignId: row.campaign_id,
+    campaignVersionId: row.campaign_version_id,
+    campaignAuditId: row.campaign_audit_id,
+    approvedBy: row.approved_by,
+    approvedAt: row.approved_at,
+    notes: row.notes,
   };
 }
 

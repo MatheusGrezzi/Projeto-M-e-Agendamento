@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { buildCampaignContext, type CampaignContextSelection } from "@/lib/agents/campaign-context";
 import { validateCampaignContext, validateGeneratedStrategy } from "@/lib/agents/campaign-validation";
-import { getConfiguredAIProvider } from "@/lib/agents/ai-provider";
+import { getConfiguredAIProvider, type AIGenerationResult } from "@/lib/agents/ai-provider";
 import { campaignStrategySchema, type CampaignStrategy } from "@/lib/schemas/campaign-strategy";
 import {
   campaignFromRow,
@@ -389,8 +389,7 @@ async function persistStrategyVersion(
   campaignId: string,
   versionNumber: number,
   strategy: CampaignStrategy,
-  generatorType: "ai" | "deterministic",
-  generatedBy: string,
+  generation: AIGenerationResult,
   generationReason: string | null,
   userId: string
 ): Promise<void> {
@@ -400,8 +399,12 @@ async function persistStrategyVersion(
       campaign_id: campaignId,
       version_number: versionNumber,
       strategy_json: strategy,
-      generator_type: generatorType,
-      generated_by: generatedBy,
+      generator_type: generation.providerType,
+      generated_by: generation.model,
+      prompt_version: generation.promptVersion,
+      input_tokens: generation.inputTokens,
+      output_tokens: generation.outputTokens,
+      duration_ms: generation.durationMs,
       generation_reason: generationReason,
       created_by: userId,
     })
@@ -493,17 +496,20 @@ export async function generateStrategyForCampaign(
     return { ok: false, errors: contextErrors, warnings };
   }
 
+  // getConfiguredAIProvider() throws if AI_PROVIDER=anthropic is explicitly
+  // requested but misconfigured — that error propagates out of this function
+  // uncaught, a controlled failure. There is no fallback to the
+  // deterministic engine once Claude was explicitly requested.
   const provider = await getConfiguredAIProvider();
-  const generatorType: "ai" | "deterministic" = provider.name === "deterministic" ? "deterministic" : "ai";
 
-  let raw: unknown;
+  let generation: AIGenerationResult;
   try {
-    raw = await provider.generateStrategy(context);
+    generation = await provider.generateStrategy(context);
   } catch (err) {
     return { ok: false, errors: [err instanceof Error ? err.message : "Falha ao chamar o provedor de IA."], warnings };
   }
 
-  let parsed = campaignStrategySchema.safeParse(raw);
+  let parsed = campaignStrategySchema.safeParse(generation.raw);
   let hallucinationErrors = parsed.success ? validateGeneratedStrategy(parsed.data, context) : [];
 
   if (!parsed.success || hallucinationErrors.length > 0) {
@@ -512,11 +518,11 @@ export async function generateStrategyForCampaign(
       : parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
 
     try {
-      raw = await provider.generateStrategy(context, { previousOutput: raw, issues });
+      generation = await provider.generateStrategy(context, { previousOutput: generation.raw, issues });
     } catch (err) {
       return { ok: false, errors: [err instanceof Error ? err.message : "Falha ao chamar o provedor de IA na correção."], warnings };
     }
-    parsed = campaignStrategySchema.safeParse(raw);
+    parsed = campaignStrategySchema.safeParse(generation.raw);
     hallucinationErrors = parsed.success ? validateGeneratedStrategy(parsed.data, context) : [];
 
     if (!parsed.success || hallucinationErrors.length > 0) {
@@ -533,7 +539,7 @@ export async function generateStrategyForCampaign(
   const existingVersions = await listCampaignVersions(supabase, campaignId);
   const nextVersionNumber = (existingVersions[0]?.versionNumber ?? 0) + 1;
 
-  await persistStrategyVersion(supabase, campaignId, nextVersionNumber, strategy, generatorType, provider.name, generationReason, userId);
+  await persistStrategyVersion(supabase, campaignId, nextVersionNumber, strategy, generation, generationReason, userId);
 
   const { error: statusError } = await supabase.from("campaigns").update({ status: "strategy_generated" }).eq("id", campaignId);
   if (statusError) throw new Error(`Falha ao atualizar status: ${statusError.message}`);

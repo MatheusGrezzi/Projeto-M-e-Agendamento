@@ -209,7 +209,12 @@ export interface CampaignVersion {
   versionNumber: number;
   strategy: import("@/lib/schemas/campaign-strategy").CampaignStrategy;
   generatorType: GeneratorType;
+  /** Model identifier (or "deterministic" for the rule-based engine). */
   generatedBy: string;
+  promptVersion: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  durationMs: number | null;
   generationReason: string | null;
   createdAt: string;
 }
@@ -235,6 +240,35 @@ export interface CampaignAssetsRow {
   sitelinks: string[];
   callouts: string[];
   structuredSnippets: string[];
+}
+
+export interface CampaignAudit {
+  id: string;
+  organizationId: string;
+  clientId: string;
+  campaignId: string;
+  campaignVersionId: string;
+  auditorProvider: GeneratorType;
+  auditorModel: string;
+  promptVersion: string;
+  score: number;
+  status: import("@/lib/schemas/campaign-audit").AuditStatus;
+  report: import("@/lib/schemas/campaign-audit").AuditReport;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  durationMs: number | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface CampaignApproval {
+  id: string;
+  campaignId: string;
+  campaignVersionId: string;
+  campaignAuditId: string;
+  approvedBy: string | null;
+  approvedAt: string;
+  notes: string | null;
 }
 
 export interface ActivityLogEntry {

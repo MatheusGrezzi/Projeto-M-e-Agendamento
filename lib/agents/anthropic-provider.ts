@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { AIProvider, CampaignCorrection } from "./ai-provider";
+import type { AIGenerationResult, AIProvider, CampaignCorrection } from "./ai-provider";
 import type { CampaignContext } from "./campaign-context";
 import { STRATEGIST_SYSTEM_PROMPT, STRATEGIST_PROMPT_VERSION } from "@/lib/prompts/strategist-v1";
 import { ASSET_LIMITS, RSA_LIMITS } from "@/lib/google-ads/limits";
@@ -13,7 +13,7 @@ import {
 } from "@/lib/schemas/campaign-strategy";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const DEFAULT_MODEL = "claude-sonnet-5";
+const DEFAULT_STRATEGY_MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 8000;
 
 function buildOutputFormatInstructions(): string {
@@ -53,9 +53,20 @@ function stripMarkdownFence(text: string): string {
   return fenceMatch ? fenceMatch[1] : trimmed;
 }
 
-async function callAnthropic(systemPrompt: string, userMessages: { role: "user" | "assistant"; content: string }[]): Promise<unknown> {
+interface AnthropicCallResult {
+  raw: unknown;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  durationMs: number;
+}
+
+async function callAnthropic(systemPrompt: string, userMessages: { role: "user" | "assistant"; content: string }[]): Promise<AnthropicCallResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada.");
+
+  const model = process.env.ANTHROPIC_STRATEGY_MODEL || DEFAULT_STRATEGY_MODEL;
+  const startedAt = Date.now();
 
   const response = await fetch(ANTHROPIC_API_URL, {
     method: "POST",
@@ -65,46 +76,70 @@ async function callAnthropic(systemPrompt: string, userMessages: { role: "user" 
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
+      model,
       max_tokens: MAX_TOKENS,
       system: systemPrompt,
       messages: userMessages,
     }),
   });
 
+  const durationMs = Date.now() - startedAt;
+
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`Falha na chamada à API da Anthropic (${response.status}): ${body.slice(0, 500)}`);
   }
 
-  const data = (await response.json()) as { content: { type: string; text?: string }[] };
+  const data = (await response.json()) as {
+    content: { type: string; text?: string }[];
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   const textBlock = data.content.find((c) => c.type === "text");
   if (!textBlock?.text) throw new Error("A API da Anthropic não retornou texto.");
 
+  let raw: unknown;
   try {
-    return JSON.parse(stripMarkdownFence(textBlock.text));
+    raw = JSON.parse(stripMarkdownFence(textBlock.text));
   } catch {
     throw new Error("A resposta da IA não é um JSON válido.");
   }
+
+  return {
+    raw,
+    model,
+    inputTokens: data.usage?.input_tokens ?? null,
+    outputTokens: data.usage?.output_tokens ?? null,
+    durationMs,
+  };
 }
 
 export const anthropicProvider: AIProvider = {
-  name: `anthropic-${STRATEGIST_PROMPT_VERSION}`,
+  name: "anthropic",
 
-  async generateStrategy(context: CampaignContext, correction?: CampaignCorrection): Promise<unknown> {
+  async generateStrategy(context: CampaignContext, correction?: CampaignCorrection): Promise<AIGenerationResult> {
     const briefing = `CampaignContext:\n${JSON.stringify(context, null, 2)}\n\n${buildOutputFormatInstructions()}`;
 
-    if (!correction) {
-      return callAnthropic(STRATEGIST_SYSTEM_PROMPT, [{ role: "user", content: briefing }]);
-    }
+    const messages: { role: "user" | "assistant"; content: string }[] = correction
+      ? [
+          { role: "user", content: briefing },
+          { role: "assistant", content: JSON.stringify(correction.previousOutput) },
+          {
+            role: "user",
+            content: `Sua resposta anterior não é válida. Problemas encontrados:\n${correction.issues.map((i) => `- ${i}`).join("\n")}\n\nCorrija e responda novamente APENAS com o JSON completo e válido, no mesmo formato.`,
+          },
+        ]
+      : [{ role: "user", content: briefing }];
 
-    return callAnthropic(STRATEGIST_SYSTEM_PROMPT, [
-      { role: "user", content: briefing },
-      { role: "assistant", content: JSON.stringify(correction.previousOutput) },
-      {
-        role: "user",
-        content: `Sua resposta anterior não é válida contra o schema. Problemas encontrados:\n${correction.issues.map((i) => `- ${i}`).join("\n")}\n\nCorrija e responda novamente APENAS com o JSON completo e válido, no mesmo formato.`,
-      },
-    ]);
+    const result = await callAnthropic(STRATEGIST_SYSTEM_PROMPT, messages);
+
+    return {
+      raw: result.raw,
+      providerType: "ai",
+      model: result.model,
+      promptVersion: STRATEGIST_PROMPT_VERSION,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      durationMs: result.durationMs,
+    };
   },
 };
