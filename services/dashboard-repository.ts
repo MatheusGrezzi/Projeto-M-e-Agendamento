@@ -7,17 +7,27 @@ export interface DashboardStats {
   activeClients: number;
   onboardingClients: number;
   pausedClients: number;
+  campaignsPlanning: number;
+  campaignsActive: number;
 }
 
 export async function getDashboardStats(supabase: SupabaseClient, organizationId: string): Promise<DashboardStats> {
-  const { data, error } = await supabase.from("clients").select("status").eq("organization_id", organizationId);
-  if (error) throw new Error(`Falha ao carregar estatísticas: ${error.message}`);
+  const [{ data: clientRows, error: clientsError }, { data: campaignRows, error: campaignsError }] = await Promise.all([
+    supabase.from("clients").select("status").eq("organization_id", organizationId),
+    supabase.from("campaigns").select("status, clients!inner(organization_id)").eq("clients.organization_id", organizationId),
+  ]);
+  if (clientsError) throw new Error(`Falha ao carregar estatísticas: ${clientsError.message}`);
+  if (campaignsError) throw new Error(`Falha ao carregar estatísticas de campanhas: ${campaignsError.message}`);
 
-  const rows = data as { status: string }[];
+  const clients = clientRows as { status: string }[];
+  const campaigns = campaignRows as { status: string }[];
+
   return {
-    totalClients: rows.length,
-    activeClients: rows.filter((r) => r.status === "active").length,
-    onboardingClients: rows.filter((r) => r.status === "onboarding").length,
-    pausedClients: rows.filter((r) => r.status === "paused").length,
+    totalClients: clients.length,
+    activeClients: clients.filter((r) => r.status === "active").length,
+    onboardingClients: clients.filter((r) => r.status === "onboarding").length,
+    pausedClients: clients.filter((r) => r.status === "paused").length,
+    campaignsPlanning: campaigns.filter((c) => c.status === "draft" || c.status === "strategy_generated").length,
+    campaignsActive: campaigns.filter((c) => c.status === "active").length,
   };
 }

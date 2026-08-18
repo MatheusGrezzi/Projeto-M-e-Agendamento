@@ -159,6 +159,101 @@ export interface ClientConversion {
   notes: string | null;
 }
 
+export type CampaignObjective = "leads" | "whatsapp" | "calls" | "forms" | "bookings";
+
+export type CampaignStatus =
+  | "draft"
+  | "strategy_generated"
+  | "under_audit"
+  | "rejected"
+  | "approved"
+  | "awaiting_human_approval"
+  | "approved_for_execution"
+  | "executed"
+  | "qa_review"
+  | "active"
+  | "optimization";
+
+export interface Campaign {
+  id: string;
+  clientId: string;
+  name: string;
+  segmentId: string;
+  objective: CampaignObjective;
+  dailyBudget: number;
+  notes: string | null;
+  status: CampaignStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignListItem {
+  id: string;
+  clientId: string;
+  clientName: string;
+  name: string;
+  segmentLabel: string;
+  objective: CampaignObjective;
+  dailyBudget: number;
+  status: CampaignStatus;
+  createdAt: string;
+}
+
+export type KeywordMatchType = "broad" | "phrase" | "exact";
+
+export interface StrategyKeyword {
+  keyword: string;
+  match_type: KeywordMatchType;
+}
+
+export interface StrategyAdGroup {
+  name: string;
+  service: string;
+  equipment: string;
+  landing_page: string | null;
+  keywords: StrategyKeyword[];
+  headlines: string[];
+  descriptions: string[];
+}
+
+/** The Estrategista agent's structured output — see briefing seção 19. */
+export interface StrategyJson {
+  campaign_name: string;
+  segment: string;
+  equipment: string[];
+  services: string[];
+  objective: CampaignObjective;
+  daily_budget: number;
+  locations: string[];
+  excluded_locations: string[];
+  conversion_actions: string[];
+  ad_groups: StrategyAdGroup[];
+  campaign_negatives: StrategyKeyword[];
+  assets: string[];
+  warnings: string[];
+  reasoning_summary: string;
+}
+
+export interface CampaignVersion {
+  id: string;
+  campaignId: string;
+  versionNumber: number;
+  strategy: StrategyJson;
+  warnings: string[];
+  reasoningSummary: string | null;
+  generatedBy: string;
+  createdAt: string;
+}
+
+export interface CampaignAdGroupRow {
+  id: string;
+  name: string;
+  landingPageUrl: string | null;
+  headlines: string[];
+  descriptions: string[];
+  keywords: StrategyKeyword[];
+}
+
 export interface ActivityLogEntry {
   id: string;
   organizationId: string;

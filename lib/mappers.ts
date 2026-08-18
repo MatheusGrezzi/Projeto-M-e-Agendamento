@@ -1,6 +1,9 @@
 import type {
   ActivityLogEntry,
   Brand,
+  Campaign,
+  CampaignListItem,
+  CampaignVersion,
   Client,
   ClientBrandStatus,
   ClientConversion,
@@ -14,6 +17,7 @@ import type {
   Profile,
   Segment,
   ServiceType,
+  StrategyJson,
 } from "@/types";
 
 export interface ClientRow {
@@ -298,6 +302,83 @@ export function clientConversionFromRow(row: ClientConversionRow): ClientConvers
     status: row.status,
     isPrimary: row.is_primary,
     notes: row.notes,
+  };
+}
+
+export interface CampaignRow {
+  id: string;
+  client_id: string;
+  name: string;
+  segment_id: string;
+  objective: Campaign["objective"];
+  daily_budget: number;
+  notes: string | null;
+  status: Campaign["status"];
+  created_at: string;
+  updated_at: string;
+}
+
+export function campaignFromRow(row: CampaignRow): Campaign {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    name: row.name,
+    segmentId: row.segment_id,
+    objective: row.objective,
+    dailyBudget: row.daily_budget,
+    notes: row.notes,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export interface CampaignListItemRow {
+  id: string;
+  name: string;
+  objective: Campaign["objective"];
+  daily_budget: number;
+  status: Campaign["status"];
+  created_at: string;
+  client: { id: string; name: string; trade_name: string | null } | null;
+  segment: { label: string } | null;
+}
+
+export function campaignListItemFromRow(row: CampaignListItemRow): CampaignListItem {
+  return {
+    id: row.id,
+    clientId: row.client?.id ?? "",
+    clientName: row.client ? row.client.trade_name || row.client.name : "",
+    name: row.name,
+    segmentLabel: row.segment?.label ?? "",
+    objective: row.objective,
+    dailyBudget: row.daily_budget,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+export interface CampaignVersionRow {
+  id: string;
+  campaign_id: string;
+  version_number: number;
+  strategy_json: StrategyJson;
+  warnings: string[];
+  reasoning_summary: string | null;
+  generated_by: string;
+  created_at: string;
+}
+
+export function campaignVersionFromRow(row: CampaignVersionRow): CampaignVersion {
+  return {
+    id: row.id,
+    campaignId: row.campaign_id,
+    versionNumber: row.version_number,
+    strategy: row.strategy_json,
+    warnings: row.warnings,
+    reasoningSummary: row.reasoning_summary,
+    generatedBy: row.generated_by,
+    createdAt: row.created_at,
   };
 }
 

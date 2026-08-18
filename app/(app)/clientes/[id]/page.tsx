@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClient } from "@/services/clients-repository";
 
 import { VisaoGeralTab } from "./tabs/visao-geral";
+import { CampanhasTab } from "./tabs/campanhas";
 import { SegmentosTab } from "./tabs/segmentos";
 import { EquipamentosTab } from "./tabs/equipamentos";
 import { ServicosTab } from "./tabs/servicos";
@@ -52,7 +53,7 @@ export default async function ClientDetailPage({
       {activeTab === "regioes" && <RegioesTab clientId={id} />}
       {activeTab === "landing-pages" && <LandingPagesTab clientId={id} organizationId={client.organizationId} />}
       {activeTab === "conversoes" && <ConversoesTab clientId={id} />}
-      {activeTab === "campanhas" && <EmBreveTab label="Campanhas" phase="Motor de campanhas e estrategista chegam na Fase 2." />}
+      {activeTab === "campanhas" && <CampanhasTab clientId={id} />}
       {activeTab === "leads" && <EmBreveTab label="Leads" phase="Rastreamento de leads chega junto da Fase 6 (Performance)." />}
       {activeTab === "performance" && <EmBreveTab label="Performance" phase="Relatórios de performance chegam na Fase 6." />}
       {activeTab === "aprendizados" && <EmBreveTab label="Aprendizados" phase="Base de aprendizados por cliente chega na Fase 5." />}

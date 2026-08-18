@@ -55,12 +55,10 @@ export default async function DashboardPage() {
         <StatCard label="Pausados" value={stats.pausedClients} icon={AlertTriangle} />
       </div>
 
-      <p className="mt-8 mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        Campanhas — disponível a partir da Fase 2
-      </p>
+      <p className="mt-8 mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Campanhas</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Campanhas ativas" value="—" icon={Megaphone} muted />
-        <StatCard label="Em planejamento" value="—" icon={CircleGauge} muted />
+        <StatCard label="Em planejamento" value={stats.campaignsPlanning} icon={CircleGauge} />
+        <StatCard label="Campanhas ativas" value={stats.campaignsActive} icon={Megaphone} muted />
         <StatCard label="Em auditoria" value="—" icon={ShieldCheck} muted />
         <StatCard label="Aguardando aprovação" value="—" icon={ClipboardCheck} muted />
         <StatCard label="Recomendações pendentes" value="—" icon={Sparkles} muted />

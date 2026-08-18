@@ -13,7 +13,15 @@ Não é um dashboard: é a base que padroniza os dados de cada cliente da agênc
 - **Formulários:** React Hook Form + `@hookform/resolvers/zod`
 - **Testes:** Vitest
 
-## Fase 1 (atual)
+## Fase 2 (atual)
+
+- Motor de campanhas: assistente em 8 passos (`/campanhas/nova`) — cliente → segmento → equipamento → serviços → regiões → orçamento → objetivo → revisão — sempre restrito ao que o cliente tem cadastrado.
+- Agente 01 (Estrategista): gera a estratégia (grupos de anúncio, palavras-chave, títulos, descrições, negativas) em JSON estruturado. Implementado como motor determinístico (`lib/agents/strategist.ts`, `placeholderStrategistEngine`) — sem custo de API, arquitetura pronta para trocar por uma IA real via a interface `StrategistEngine`.
+- Nunca inclui equipamento/serviço/região que o cliente marcou como restrição — verificado tanto na origem dos dados quanto defensivamente dentro do próprio agente.
+- Versionamento de estratégia (`campaign_versions`) — cada geração é um snapshot imutável; "Gerar nova versão" reprocessa o mesmo briefing.
+- Página de campanha (`/campanhas/[id]`) mostra grupos de anúncio, palavras-chave (com tipo de correspondência), títulos, descrições, palavras negativas e alertas do agente.
+
+## Fase 1
 
 - Autenticação (Supabase Auth) e organizações multiusuário
 - Cadastro de clientes (empresas atendidas pela agência)

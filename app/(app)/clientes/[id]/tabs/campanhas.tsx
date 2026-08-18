@@ -1,62 +1,36 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
-import { PageHeader } from "@/components/shared/page-header";
 import { CampaignStatusBadge } from "@/components/shared/campaign-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrencyBRL } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { listCampaigns } from "@/services/campaigns-repository";
-import { getMyOrganization } from "@/services/organizations-repository";
+import { listCampaignsForClient } from "@/services/campaigns-repository";
 
 const OBJECTIVE_LABEL = { leads: "Leads", whatsapp: "WhatsApp", calls: "Ligações", forms: "Formulários", bookings: "Agendamentos" } as const;
 
-export default async function CampanhasPage() {
+export async function CampanhasTab({ clientId }: { clientId: string }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const org = await getMyOrganization(supabase, user.id);
-  if (!org) redirect("/login");
-
-  const campaigns = await listCampaigns(supabase, org.id);
+  const campaigns = await listCampaignsForClient(supabase, clientId);
 
   return (
-    <div>
-      <PageHeader
-        title="Campanhas"
-        description={`${campaigns.length} ${campaigns.length === 1 ? "campanha criada" : "campanhas criadas"}`}
-        action={
-          <Button render={<Link href="/campanhas/nova" />}>
+    <Card>
+      <CardContent>
+        <div className="mb-4 flex justify-end">
+          <Button render={<Link href="/campanhas/nova" />} size="sm">
             <Plus className="size-4" />
             Nova campanha
           </Button>
-        }
-      />
-
-      {campaigns.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-            <p className="text-sm text-muted-foreground">Nenhuma campanha criada ainda.</p>
-            <Button render={<Link href="/campanhas/nova" />} size="sm">
-              <Plus className="size-4" />
-              Criar a primeira campanha
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="overflow-hidden py-0">
+        </div>
+        {campaigns.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma campanha criada para este cliente ainda.</p>
+        ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Campanha</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Segmento</TableHead>
                 <TableHead>Objetivo</TableHead>
                 <TableHead>Orçamento diário</TableHead>
                 <TableHead>Status</TableHead>
@@ -70,12 +44,6 @@ export default async function CampanhasPage() {
                       {c.name}
                     </Link>
                   </TableCell>
-                  <TableCell>
-                    <Link href={`/clientes/${c.clientId}`} className="text-muted-foreground hover:underline">
-                      {c.clientName}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{c.segmentLabel}</TableCell>
                   <TableCell>{OBJECTIVE_LABEL[c.objective]}</TableCell>
                   <TableCell>{formatCurrencyBRL(c.dailyBudget)}</TableCell>
                   <TableCell>
@@ -85,8 +53,8 @@ export default async function CampanhasPage() {
               ))}
             </TableBody>
           </Table>
-        </Card>
-      )}
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
