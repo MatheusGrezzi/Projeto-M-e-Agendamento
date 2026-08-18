@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-import { companyConfig } from "@/lib/config/company-config";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -16,15 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(companyConfig.seo.siteUrl),
-  title: companyConfig.seo.defaultTitle,
-  description: companyConfig.seo.defaultDescription,
-  icons: { icon: companyConfig.logo.favicon },
-  openGraph: {
-    title: companyConfig.seo.defaultTitle,
-    description: companyConfig.seo.defaultDescription,
-    images: [companyConfig.seo.ogImage],
-  },
+  title: "Reconnect OS",
+  description: "Sistema operacional interno da Reconnect — geração de leads para assistências técnicas.",
 };
 
 export default function RootLayout({
@@ -33,10 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-background text-foreground">
-        {children}
-        <Toaster position="top-right" />
+    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`} suppressHydrationWarning>
+      <body className="min-h-full bg-background text-foreground">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+          <Toaster position="top-right" />
+        </ThemeProvider>
       </body>
     </html>
   );

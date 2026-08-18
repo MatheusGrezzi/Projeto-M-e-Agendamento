@@ -1,12 +1,25 @@
-import { CalendarDays, Contact, LayoutDashboard, ListChecks, Settings, Users } from "lucide-react";
+import {
+  Activity,
+  BookOpen,
+  Bot,
+  LayoutDashboard,
+  Lightbulb,
+  LineChart,
+  Megaphone,
+  Settings,
+  Sparkles,
+  Users,
+} from "lucide-react";
 
-import type { Role } from "@/types";
-
-export const ADMIN_NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "atendente"] as Role[] },
-  { href: "/admin/agenda", label: "Agenda", icon: CalendarDays, roles: ["admin", "atendente"] as Role[] },
-  { href: "/admin/clientes", label: "Clientes", icon: Contact, roles: ["admin", "atendente"] as Role[] },
-  { href: "/admin/servicos", label: "Serviços", icon: ListChecks, roles: ["admin"] as Role[] },
-  { href: "/admin/profissionais", label: "Profissionais", icon: Users, roles: ["admin"] as Role[] },
-  { href: "/admin/configuracoes", label: "Configurações", icon: Settings, roles: ["admin"] as Role[] },
+export const NAV_ITEMS = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/clientes", label: "Clientes", icon: Users },
+  { href: "/campanhas", label: "Campanhas", icon: Megaphone },
+  { href: "/performance", label: "Performance", icon: LineChart },
+  { href: "/recomendacoes", label: "Recomendações", icon: Sparkles },
+  { href: "/conhecimento", label: "Conhecimento", icon: BookOpen },
+  { href: "/aprendizados", label: "Aprendizados", icon: Lightbulb },
+  { href: "/agentes", label: "Agentes", icon: Bot },
+  { href: "/atividades", label: "Atividades", icon: Activity },
+  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;

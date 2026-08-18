@@ -1,29 +1,32 @@
-# Projeto-Mãe Agendamento
+# Reconnect OS
 
-Template white-label de agendamento (Next.js + Supabase) para negócios que trabalham com horário marcado — barbearias, clínicas odontológicas, clínicas de estética, salões de beleza e afins.
+Sistema operacional interno da Reconnect — agência especializada em geração de leads para assistências técnicas de eletrodomésticos, refrigeração e climatização.
 
-Não é um SaaS multi-tenant: é um **projeto-base** que se duplica e personaliza a cada novo cliente fechado. Ver [CUSTOMIZATION.md](CUSTOMIZATION.md) para o passo a passo completo de como transformar este projeto-mãe no projeto de um cliente específico.
+Não é um dashboard: é a base que padroniza os dados de cada cliente da agência (segmentos, equipamentos, serviços atendidos e **não atendidos**, marcas, regiões, landing pages, conversões) para que agentes de IA usem essas informações com segurança ao planejar, auditar e executar campanhas de Google Ads.
 
 ## Stack
 
 - **Frontend:** Next.js 16 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui (Base UI), Lucide Icons
 - **Backend:** Server Actions + Server Components, TypeScript
-- **Banco:** Supabase (PostgreSQL) com Row Level Security
+- **Banco:** Supabase (PostgreSQL) com Row Level Security, multiusuário/multiorganização
 - **Validação:** Zod
 - **Formulários:** React Hook Form + `@hookform/resolvers/zod`
 - **Testes:** Vitest
 
-## O que já vem pronto (MVP)
+## Fase 1 (atual)
 
-- Site institucional (início, serviços, sobre, contato)
-- Fluxo de agendamento público (serviço → profissional → horário → confirmação)
-- Login/cadastro de clientes + área do cliente (meus agendamentos, cancelar)
-- Painel administrativo: dashboard, agenda (com agendamento manual), gestão de serviços, gestão de profissionais (com horários de trabalho), gestão de clientes, configuração de horário de funcionamento
-- Módulo de clínica (odontológica/estética): dados clínicos do cliente (CPF, convênio, alergias) e prontuário — opcional, ver [CUSTOMIZATION.md § 6](CUSTOMIZATION.md#6-módulo-de-clínica-odontológica--estética)
-- Controle de acesso por papel (admin / atendente / cliente)
-- Identidade centralizada em [`lib/config/company-config.ts`](lib/config/company-config.ts) — nada de nome/telefone/cor espalhado pelo código
+- Autenticação (Supabase Auth) e organizações multiusuário
+- Cadastro de clientes (empresas atendidas pela agência)
+- Segmentos, equipamentos e serviços atendidos — com combinações flexíveis (equipamento + serviço)
+- Equipamentos e serviços **não atendidos** (crítico para os futuros agentes de IA)
+- Marcas atendidas / não atendidas / sem restrição
+- Regiões atendidas, com prioridade, e regiões excluídas
+- Landing pages e conversões por cliente
+- Histórico de alterações (audit log) por cliente e por organização
+- Dashboard com estatísticas reais de clientes + espaço reservado para métricas de campanha (Fase 2+)
+- Navegação completa da Fase 2 em diante (Campanhas, Performance, Recomendações, Conhecimento, Aprendizados, Agentes) como placeholders "em breve"
 
-O que fica para uma fase seguinte está documentado em [CUSTOMIZATION.md § 8](CUSTOMIZATION.md#8-limitações-conhecidas-do-mvp-fase-1).
+As fases seguintes (motor de campanhas com agentes de IA, auditoria, aprovação humana, execução, QA, base de conhecimento, aprendizados, performance e benchmarks) estão descritas no planejamento do produto e serão implementadas incrementalmente.
 
 ## Como rodar localmente
 
@@ -38,7 +41,7 @@ Preencha `.env.local` com as credenciais de um projeto Supabase (crie um em [sup
 npm run dev
 ```
 
-Promova sua conta a `admin` (ver [CUSTOMIZATION.md § 4](CUSTOMIZATION.md#4-papéis-e-permissões-rbac)) para acessar `/admin`.
+Crie sua conta em `/login` via Supabase Auth (Dashboard → Authentication → Add user, ou habilite signup). O primeiro usuário criado se torna automaticamente `owner` da organização "Reconnect" (seedada pela migration); os seguintes entram como `member`.
 
 ## Scripts
 
@@ -54,18 +57,16 @@ Promova sua conta a `admin` (ver [CUSTOMIZATION.md § 4](CUSTOMIZATION.md#4-pap�
 
 ```
 app/
-  (site)/        site institucional público + fluxo de agendamento
-  (auth)/        login / cadastro
-  (cliente)/     área do cliente autenticado
-  admin/         painel administrativo (admin + atendente)
+  login/                       autenticação
+  (app)/                       área autenticada (sidebar completa)
+    clientes/                  lista + onboarding + página do cliente (14 abas)
+    campanhas, performance...  placeholders das fases seguintes
 lib/
-  booking/       motor de disponibilidade — função pura, sem dependências externas
-  config/        identidade centralizada do cliente (company-config.ts)
-  supabase/      clients Supabase (browser / server / admin) + middleware de sessão
-  validations/   schemas Zod por domínio
-services/        camada de acesso a dados (repositórios), por domínio
-supabase/migrations/  schema + RLS, em ordem
-tests/           testes Vitest
+  config/                      —
+  supabase/                    clients Supabase (browser / server / admin) + middleware de sessão
+  validations/                 schemas Zod por domínio
+  mappers.ts                   conversão snake_case (DB) → camelCase (app)
+services/                      camada de acesso a dados (repositórios), por domínio
+supabase/migrations/           schema + RLS, em ordem
+tests/                         testes Vitest
 ```
-
-Ver [CUSTOMIZATION.md](CUSTOMIZATION.md) para o mapa completo de "o que muda por cliente e onde editar".
