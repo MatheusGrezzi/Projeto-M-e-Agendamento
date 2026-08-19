@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AIGenerationResult, AIProvider, CampaignCorrection } from "./ai-provider";
 import type { CampaignContext } from "./campaign-context";
+import { parseAnthropicJsonResponse } from "./anthropic-json-response";
 import { STRATEGIST_SYSTEM_PROMPT, STRATEGIST_PROMPT_VERSION } from "@/lib/prompts/strategist-v1";
 import { ASSET_LIMITS, RSA_LIMITS } from "@/lib/google-ads/limits";
 import {
@@ -14,7 +15,9 @@ import {
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_STRATEGY_MODEL = "claude-sonnet-5";
-const MAX_TOKENS = 8000;
+// A full multi-ad-group CampaignStrategy (keywords, RSA copy, negatives,
+// assets) can run long; 8000 was cutting real responses off mid-JSON.
+const MAX_TOKENS = 16000;
 
 function buildOutputFormatInstructions(): string {
   return `Responda apenas com um JSON (sem markdown, sem texto fora do JSON) exatamente neste formato:
@@ -45,12 +48,6 @@ function buildOutputFormatInstructions(): string {
 }
 
 Use exatamente "client_id": "${"{{client_id}}"}" e "campaign_id": "${"{{campaign_id}}"}" (substituindo pelos valores reais informados no CampaignContext).`;
-}
-
-function stripMarkdownFence(text: string): string {
-  const trimmed = text.trim();
-  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  return fenceMatch ? fenceMatch[1] : trimmed;
 }
 
 interface AnthropicCallResult {
@@ -93,16 +90,12 @@ async function callAnthropic(systemPrompt: string, userMessages: { role: "user" 
   const data = (await response.json()) as {
     content: { type: string; text?: string }[];
     usage?: { input_tokens?: number; output_tokens?: number };
+    stop_reason?: string | null;
   };
   const textBlock = data.content.find((c) => c.type === "text");
   if (!textBlock?.text) throw new Error("A API da Anthropic não retornou texto.");
 
-  let raw: unknown;
-  try {
-    raw = JSON.parse(stripMarkdownFence(textBlock.text));
-  } catch {
-    throw new Error("A resposta da IA não é um JSON válido.");
-  }
+  const raw = parseAnthropicJsonResponse({ text: textBlock.text, stopReason: data.stop_reason ?? null }, "Estrategista");
 
   return {
     raw,

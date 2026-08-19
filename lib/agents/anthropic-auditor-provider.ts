@@ -3,19 +3,16 @@ import "server-only";
 import type { AIGenerationResult } from "./ai-provider";
 import type { AuditorProvider } from "./auditor-provider";
 import type { CampaignContext } from "./campaign-context";
+import { parseAnthropicJsonResponse } from "./anthropic-json-response";
 import { AUDITOR_SYSTEM_PROMPT, AUDITOR_PROMPT_VERSION } from "@/lib/prompts/auditor-v1";
 import { AUDIT_CATEGORIES, AUDIT_SEVERITIES, AUDIT_STATUSES, type AuditIssue } from "@/lib/schemas/campaign-audit";
 import type { CampaignStrategy } from "@/lib/schemas/campaign-strategy";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_AUDITOR_MODEL = "claude-sonnet-5";
-const MAX_TOKENS = 6000;
-
-function stripMarkdownFence(text: string): string {
-  const trimmed = text.trim();
-  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  return fenceMatch ? fenceMatch[1] : trimmed;
-}
+// A full audit report can carry many issues across 18 categories; 6000 was
+// tight enough to risk truncating a thorough report mid-JSON.
+const MAX_TOKENS = 8000;
 
 function buildOutputFormatReminder(): string {
   return `Responda apenas com um JSON (sem markdown, sem texto fora do JSON) neste formato:
@@ -69,16 +66,12 @@ export const anthropicAuditorProvider: AuditorProvider = {
     const data = (await response.json()) as {
       content: { type: string; text?: string }[];
       usage?: { input_tokens?: number; output_tokens?: number };
+      stop_reason?: string | null;
     };
     const textBlock = data.content.find((c) => c.type === "text");
     if (!textBlock?.text) throw new Error("A API da Anthropic não retornou texto.");
 
-    let raw: unknown;
-    try {
-      raw = JSON.parse(stripMarkdownFence(textBlock.text));
-    } catch {
-      throw new Error("A resposta da IA (Auditor) não é um JSON válido.");
-    }
+    const raw = parseAnthropicJsonResponse({ text: textBlock.text, stopReason: data.stop_reason ?? null }, "Auditor");
 
     return {
       raw,
