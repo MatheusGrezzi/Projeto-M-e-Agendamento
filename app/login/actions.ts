@@ -27,6 +27,7 @@ export async function loginAction(_prevState: AuthActionState, formData: FormDat
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
+    console.error("[login] signInWithPassword falhou:", error.code, error.status, error.message);
     if (error.code === "email_not_confirmed") {
       return { error: "Confirme seu e-mail antes de entrar — verifique sua caixa de entrada." };
     }
